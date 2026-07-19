@@ -75,6 +75,7 @@
             text-align: center;
             margin-bottom: 25px;
             font-size: 14px;
+            display: none; /* Скрыт по умолчанию, показывается только при наличии ID */
         }
 
         .continue-reading-box {
@@ -127,26 +128,6 @@
         .chapter-status { font-size: 14px; }
         .status-completed { color: #2ecc71; font-weight: bold; }
         .status-reading { color: #3498db; font-style: italic; }
-
-        /* Кнопка отчета */
-        .stats-box {
-            text-align: center;
-            padding: 20px;
-            border-top: 1px dashed rgba(128, 128, 128, 0.3);
-        }
-        .btn-action {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        .btn-action:hover { background-color: #2980b9; }
-        .alert-success { color: #2ecc71; margin-top: 10px; display: none; font-size: 14px; }
 
         /* Экран чтения */
         .reader-nav {
@@ -225,7 +206,7 @@
             <p class="subtitle">Практическое руководство по работе с тягой и зависимостями</p>
 
             <div class="patient-badge" id="patient-badge">
-                Пациент: <strong id="patient-id-display">Загрузка...</strong>
+                Пациент: <strong id="patient-id-display">...</strong>
             </div>
 
             <!-- Блок быстрого возврата к чтению -->
@@ -235,17 +216,8 @@
 
             <!-- Список глав -->
             <ul class="chapter-list" id="chapters-ul">
-                <!-- Генерируется автоматически через JS -->
+                <p style="text-align:center; padding: 20px; opacity:0.7;">Инициализация списка глав...</p>
             </ul>
-
-            <!-- Блок статистики и отправки отчета -->
-            <div class="stats-box">
-                <p style="margin-bottom: 15px; font-size: 14px; opacity: 0.8;">
-                    Вы можете скопировать данные вашего прогресса и отправить их вашему терапевту.
-                </p>
-                <button class="btn-action" onclick="copyReportToClipboard()">📋 Копировать отчет для врача</button>
-                <div class="alert-success" id="copy-success-alert">Отчет успешно скопирован в буфер обмена!</div>
-            </div>
         </div>
 
         <!-- ================= ЭКРАН 2: ЧТЕНИЕ ГЛАВЫ ================= -->
@@ -264,59 +236,66 @@
     </div>
 
     <script>
-        // ================= НАСТРОЙКА КНИГИ (Замените демонстрационные ссылки на ваши реальные опубликованные адреса) =================
-        const CHAPTERS_CONFIG = [
-            { id: 'chapter1',  num: 1,  title: 'Природа тяги и распространенные мифы о ней', url: 'https://docs.google.com/document/d/e/2PACX-1vS59tQ_g0gsc1ZgE-z9M7Wf_0FpG_hXN00YyS_p_R_K_Example1/pub' },
-            { id: 'chapter2',  num: 2,  title: 'За и против: почему мы выбираем зависимость', url: 'https://docs.google.com/document/d/e/2PACX-1vS59tQ_g0gsc1ZgE-z9M7Wf_0FpG_hXN00YyS_p_R_K_Example2/pub' },
-            { id: 'chapter3',  num: 3,  title: 'Роль ценностей в преодолении привычек',     url: 'https://docs.google.com/document/d/e/2PACX-1vS59tQ_g0gsc1ZgE-z9M7Wf_0FpG_hXN00YyS_p_R_K_Example3/pub' },
-            { id: 'chapter4',  num: 4,  title: 'Почему жесткий контроль над тягой не работает', url: 'https://docs.google.com/document/d/e/2PACX-1vS59tQ_g0gsc1ZgE-z9M7Wf_0FpG_hXN00YyS_p_R_K_Example4/pub' },
-            { id: 'chapter5',  num: 5,  title: 'Готовность принять и прожить тягу',         url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_5/pub' },
-            { id: 'chapter6',  num: 6,  title: 'Когнитивное разделение: шаг назад от мыслей', url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_6/pub' },
-            { id: 'chapter7',  num: 7,  title: 'Наблюдающее «Я»: вы больше своих историй',   url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_7/pub' },
-            { id: 'chapter8',  num: 8,  title: 'Осознанность и укрощение ума',              url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_8/pub' },
-            { id: 'chapter9',  num: 9,  title: 'Самосострадание против стыда и самокритики', url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_9/pub' },
-            { id: 'chapter10', num: 10, title: 'Наполнение жизни последовательными действиями', url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_10/pub' },
-            { id: 'chapter11', num: 11, title: 'Как справляться с промахами и рецидивами',   url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_11/pub' },
-            { id: 'chapter12', num: 12, title: 'Как выстроить надежную систему поддержки',   url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_12/pub' },
-            { id: 'chapter13', num: 13, title: 'Ваша новая история и долгосрочный успех',     url: 'https://docs.google.com/document/d/e/2PACX-1v_Demo_Link_13/pub' }
-        ];
-
-        // Интегрированный адрес Google Apps Script вебхука для авто-отправки данных в таблицу
+        // ================= ССЫЛКА НА ГЛАВНЫЙ ДОКУМЕНТ С ОГЛАВЛЕНИЕМ И ВЕБХУК =================
+        const MASTER_DOC_URL = 'https://docs.google.com/document/d/e/2PACX-1vQR7Y7WnZQgXFXdO5D_NTDiwJCJV1G8IJ1VgynuEM55UrpBl33OyVO82roLIHxX9Pdvr_f9lXGCT-5b/pub';
         const AUTO_SYNC_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbxNUthMuBoOGOvVLqRODy58_9HCSm7XBdtRGfYi41sguxx_ZbGWb0w7i16MkEXt5AWN/exec'; 
 
-        // ================= СИСТЕМНЫЙ КОД ПРИЛОЖЕНИЯ =================
-        let patientId = 'Анонимный читатель';
+        // Исходная структура глав
+        const CHAPTERS_CONFIG = [
+            { id: 'chapter1',  num: 1,  title: 'Природа тяги и распространенные мифы о ней', url: '' },
+            { id: 'chapter2',  num: 2,  title: 'За и против: почему мы выбираем зависимость', url: '' },
+            { id: 'chapter3',  num: 3,  title: 'Роль ценностей в преодолении привычек',     url: '' },
+            { id: 'chapter4',  num: 4,  title: 'Почему жесткий контроль над тягой не работает', url: '' },
+            { id: 'chapter5',  num: 5,  title: 'Готовность принять и прожить тягу',         url: '' },
+            { id: 'chapter6',  num: 6,  title: 'Когнитивное разделение: шаг назад от мыслей', url: '' },
+            { id: 'chapter7',  num: 7,  title: 'Наблюдающее «Я»: вы больше своих историй',   url: '' },
+            { id: 'chapter8',  num: 8,  title: 'Осознанность и укрощение ума',              url: '' },
+            { id: 'chapter9',  num: 9,  title: 'Самосострадание против стыда и самокритики', url: '' },
+            { id: 'chapter10', num: 10, title: 'Наполнение жизни последовательными действиями', url: '' },
+            { id: 'chapter11', num: 11, title: 'Как справляться с промахами и рецидивами',   url: '' },
+            { id: 'chapter12', num: 12, title: 'Как выстроить надежную систему поддержки',   url: '' },
+            { id: 'chapter13', num: 13, title: 'Ваша новая история и долгосрочный успех',     url: '' }
+        ];
+
+        // Системные переменные
+        let patientId = null;
         let currentChapterId = null;
         let isTabFocused = true;
         let globalReadingTimeInterval = null;
 
-        // Инициализация структуры собираемой статистики
         let trackingStats = {
             totalActiveSeconds: 0,
             lastVisit: new Date().toLocaleDateString('ru-RU'),
-            chapters: {} // ID_главы: { timeSeconds: 0, completed: false, lastReadDate: "" }
+            chapters: {}
         };
 
-        // Запуск и настройка приложения при старте
-        function initApp() {
-            // 1. Определение ID Пациента из ссылки (?p=Иванов или ?id=Иванов)
+        // Запуск приложения
+        async function initApp() {
+            // 1. Определение ID Пациента
             const params = new URLSearchParams(window.location.search);
             const pCode = params.get('p') || params.get('id');
             if (pCode) {
                 localStorage.setItem('cravings_p_id', pCode);
-                // Очищаем адресную строку браузера для эстетичного вида
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
-            patientId = localStorage.getItem('cravings_p_id') || 'Анонимный читатель';
-            document.getElementById('patient-id-display').innerText = patientId;
+            patientId = localStorage.getItem('cravings_p_id');
+            
+            // Если код передан — показываем баннер, если нет — скрываем
+            if (patientId) {
+                document.getElementById('patient-badge').style.display = 'block';
+                document.getElementById('patient-id-display').innerText = patientId;
+            } else {
+                document.getElementById('patient-badge').style.display = 'none';
+                patientId = 'Не указан';
+            }
 
-            // 2. Настройка сохраненной темы оформления и размера шрифта
+            // 2. Настройка темы и шрифта
             const savedTheme = localStorage.getItem('cravings_theme') || 'light';
             setTheme(savedTheme);
             const savedFontSize = localStorage.getItem('cravings_font_size') || '18';
             document.getElementById('chapter-content').style.fontSize = savedFontSize + 'px';
 
-            // 3. Загрузка сохраненной статистики из памяти устройства
+            // 3. Загрузка статистики
             const savedStats = localStorage.getItem('cravings_stats_v2');
             if (savedStats) {
                 trackingStats = JSON.parse(savedStats);
@@ -324,17 +303,68 @@
             trackingStats.lastVisit = new Date().toLocaleDateString('ru-RU');
             saveStatsToStorage();
 
-            // 4. Отрендерить оглавление
-            renderTableOfContents();
+            // 4. Динамическое скачивание адресов глав из мастер-документа
+            await loadChapterUrlsFromMaster();
 
-            // 5. Проверить точку прерванного чтения
-            checkContinueReading();
-
-            // 6. Запуск таймера учета активного чтения
+            // 5. Запуск таймера активного чтения
             startActiveTimeTracker();
         }
 
-        // Вывод оглавления книги на главную страницу
+        // Автоматический парсинг главного документа
+        async function loadChapterUrlsFromMaster() {
+            try {
+                const rawHtml = await fetchWithFallback(MASTER_DOC_URL);
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(rawHtml, 'text/html');
+                
+                const links = [];
+                doc.querySelectorAll('a').forEach(a => {
+                    const href = a.getAttribute('href');
+                    if (href) {
+                        const clean = extractCleanUrl(href);
+                        if (clean.includes('/pub') && clean.includes('docs.google.com/document')) {
+                            if (!links.includes(clean)) {
+                                links.push(clean);
+                            }
+                        }
+                    }
+                });
+
+                // Назначаем найденные ссылки главам
+                for (let i = 0; i < CHAPTERS_CONFIG.length; i++) {
+                    if (links[i]) {
+                        CHAPTERS_CONFIG[i].url = links[i];
+                    } else {
+                        console.warn(`Ссылка для главы ${i + 1} не найдена в оглавлении.`);
+                    }
+                }
+
+                // Рендерим оглавление
+                renderTableOfContents();
+                checkContinueReading();
+
+            } catch (err) {
+                console.error('Ошибка импорта структуры оглавления', err);
+                document.getElementById('chapters-ul').innerHTML = `
+                    <p style="color: red; text-align: center; padding: 20px; font-size:14px;">
+                        Ошибка при получении списка глав. Пожалуйста, проверьте подключение к сети и перезагрузите страницу.
+                    </p>`;
+            }
+        }
+
+        // Очистка редирект-ссылок Google Docs
+        function extractCleanUrl(url) {
+            if (url.includes('google.com/url?q=')) {
+                const parts = url.split('google.com/url?q=');
+                if (parts[1]) {
+                    const actualUrl = parts[1].split('&')[0];
+                    return decodeURIComponent(actualUrl);
+                }
+            }
+            return url;
+        }
+
+        // Отрендерить оглавление
         function renderTableOfContents() {
             const ul = document.getElementById('chapters-ul');
             ul.innerHTML = '';
@@ -359,7 +389,6 @@
                 infoDiv.appendChild(titleSpan);
                 li.appendChild(infoDiv);
 
-                // Определение статуса чтения главы
                 const statusSpan = document.createElement('span');
                 statusSpan.className = 'chapter-status';
                 
@@ -375,12 +404,12 @@
             });
         }
 
-        // Проверка точки прерванного чтения
+        // Проверить прерванное чтение
         function checkContinueReading() {
             const lastChId = localStorage.getItem('cravings_last_ch_id');
             if (lastChId) {
                 const chapter = CHAPTERS_CONFIG.find(c => c.id === lastChId);
-                if (chapter) {
+                if (chapter && chapter.url) { // Открываем продолжение только если ссылка загружена
                     document.getElementById('continue-box').style.display = 'block';
                     document.getElementById('continue-chapter-title').innerText = `Глава ${chapter.num}. ${chapter.title}`;
                 }
@@ -394,17 +423,15 @@
             if (lastChId) openChapter(lastChId);
         }
 
-        // ================= ОТКРЫТИЕ И ИНТЕРАКТИВНОЕ ЧТЕНИЕ ГЛАВЫ =================
+        // ================= ОТКРЫТИЕ И ЧТЕНИЕ ГЛАВЫ =================
         async function openChapter(chapterId) {
             currentChapterId = chapterId;
             localStorage.setItem('cravings_last_ch_id', chapterId);
             
-            // Переключаем экраны: скрываем оглавление, выводим экран чтения
             document.getElementById('home-screen').classList.remove('active');
             document.getElementById('reading-screen').classList.add('active');
             document.getElementById('btn-to-index').style.display = 'block';
 
-            // Настройка кнопок навигации назад/вперед внизу главы
             const index = CHAPTERS_CONFIG.findIndex(c => c.id === chapterId);
             document.getElementById('btn-prev').style.visibility = index === 0 ? 'hidden' : 'visible';
             document.getElementById('btn-next').style.visibility = index === CHAPTERS_CONFIG.length - 1 ? 'hidden' : 'visible';
@@ -413,18 +440,22 @@
             window.scrollTo(0, 0);
 
             const chapter = CHAPTERS_CONFIG[index];
+            
+            if (!chapter.url) {
+                document.getElementById('chapter-content').innerHTML = '<p style="text-align:center; padding: 40px 0; color: red;">Ошибка: ссылка для этой главы еще не загружена из оглавления. Попробуйте обновить страницу.</p>';
+                return;
+            }
+
             try {
                 const rawHtml = await fetchWithFallback(chapter.url);
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(rawHtml, 'text/html');
                 
-                // Очищаем контент от встроенных стилей оформления Google Документов
                 doc.querySelectorAll('style').forEach(s => s.remove());
                 const cleanContent = doc.querySelector('body').innerHTML;
                 
                 document.getElementById('chapter-content').innerHTML = cleanContent;
 
-                // Восстановление позиции прокрутки для этой главы, если пациент её ранее открывал
                 const savedScroll = localStorage.getItem(`scroll_pos_${currentChapterId}`);
                 if (savedScroll) {
                     setTimeout(() => {
@@ -436,13 +467,12 @@
                 document.getElementById('chapter-content').innerHTML = `
                     <div style="text-align:center; padding: 40px 20px; color: red;">
                         <p><strong>Не удалось загрузить главу.</strong></p>
-                        <p style="font-size:14px; color:inherit;">Проверьте интернет-соединение или попробуйте перезагрузить страницу.</p>
+                        <p style="font-size:14px; color:inherit;">Проверьте подключение к сети или попробуйте перезагрузить страницу.</p>
                     </div>`;
                 console.error(err);
             }
         }
 
-        // Обход ограничений CORS с использованием резервных прокси-серверов
         async function fetchWithFallback(targetUrl) {
             const proxies = [
                 `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
@@ -453,14 +483,13 @@
                     const res = await fetch(proxy);
                     if (res.ok) return await res.text();
                 } catch (e) {
-                    console.warn('Прокси-сервер временно недоступен, пробуем следующий...', e);
+                    console.warn('Сервер обхода CORS вернул ошибку, пробуем следующий...', e);
                 }
             }
-            throw new Error('Все прокси-серверы вернули ошибку.');
+            throw new Error('Все прокси-серверы недоступны.');
         }
 
         function goHome() {
-            // Сохраняем текущее положение прокрутки перед возвратом в меню
             if (currentChapterId) {
                 localStorage.setItem(`scroll_pos_${currentChapterId}`, window.scrollY);
             }
@@ -490,7 +519,7 @@
             }
         }
 
-        // ================= НАСТРОЙКИ ЧТЕНИЯ (ШРИФТ И ТЕМЫ) =================
+        // ================= НАСТРОЙКИ ЧТЕНИЯ =================
         function changeFontSize(delta) {
             const content = document.getElementById('chapter-content');
             let currentSize = parseInt(window.getComputedStyle(content).fontSize);
@@ -507,16 +536,14 @@
             localStorage.setItem('cravings_theme', theme);
         }
 
-        // ================= УЧЕТ АКТИВНОГО ВРЕМЕНИ И СТАТИСТИКИ =================
+        // ================= СБОР АНАЛИТИКИ И СИНХРОНИЗАЦИЯ =================
         function startActiveTimeTracker() {
-            // Анализ активности вкладки браузера
             document.addEventListener('visibilitychange', () => {
                 isTabFocused = !document.hidden;
             });
             window.addEventListener('focus', () => { isTabFocused = true; });
             window.addEventListener('blur', () => { isTabFocused = false; });
 
-            // Каждую секунду начисляем время, если вкладка активна
             globalReadingTimeInterval = setInterval(() => {
                 if (isTabFocused) {
                     trackingStats.totalActiveSeconds++;
@@ -528,13 +555,11 @@
                         trackingStats.chapters[currentChapterId].timeSeconds++;
                         trackingStats.chapters[currentChapterId].lastReadDate = new Date().toLocaleString('ru-RU');
 
-                        // Автоматически помечаем прочитанным при прокрутке страницы ниже 85%
                         checkScrollPercentage();
                     }
                 }
             }, 1000);
 
-            // Регулярное резервное копирование во внутреннюю память раз в 15 секунд
             setInterval(saveStatsToStorage, 15000);
         }
 
@@ -555,60 +580,7 @@
             localStorage.setItem('cravings_stats_v2', JSON.stringify(trackingStats));
         }
 
-        // Конвертация секунд в минуты для наглядности отчета
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60);
-            if (m === 0 && seconds > 0) return 'меньше минуты';
-            return `${m} мин.`;
-        }
-
-        // Генерация структурированного отчета в буфер обмена
-        function generateReportText() {
-            saveStatsToStorage();
-            let completedCount = 0;
-            let chaptersText = '';
-
-            CHAPTERS_CONFIG.forEach(ch => {
-                const chStats = trackingStats.chapters[ch.id];
-                if (chStats) {
-                    const status = chStats.completed ? 'Прочитано' : 'В процессе';
-                    if (chStats.completed) completedCount++;
-                    chaptersText += `\n- Глава ${ch.num}: ${status} (Время: ${formatTime(chStats.timeSeconds)}, Дата: ${chStats.lastReadDate || 'нет'})`;
-                }
-            });
-
-            const currentActiveCh = currentChapterId ? CHAPTERS_CONFIG.find(c => c.id === currentChapterId) : null;
-            const currentText = currentActiveCh ? `Глава ${currentActiveCh.num}. ${currentActiveCh.title}` : 'Оглавление (не читает)';
-
-            return `ОТЧЕТ О ПРОГРЕССЕ ЧТЕНИЯ:
-ID Пациента: ${patientId}
-Дата отчета: ${new Date().toLocaleString('ru-RU')}
-Последний визит: ${trackingStats.lastVisit}
-Общее активное время чтения: ${formatTime(trackingStats.totalActiveSeconds)}
-Прочитано глав: ${completedCount} из ${CHAPTERS_CONFIG.length}
-Сейчас читает: ${currentText}
-----------------------------------------
-Детализация по главам:${chaptersText || '\nПока нет данных о чтении глав.'}
-----------------------------------------
-Создано в системе управления тягой на основе ACT.`;
-        }
-
-        function copyReportToClipboard() {
-            const reportText = generateReportText();
-            navigator.clipboard.writeText(reportText).then(() => {
-                const alert = document.getElementById('copy-success-alert');
-                alert.style.display = 'block';
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 4000);
-            }).catch(err => {
-                alert('Не удалось скопировать отчет автоматически. Выделите и скопируйте текст вручную.');
-                console.error(err);
-            });
-            syncStatsWithWebhook();
-        }
-
-        // Фоновая автоматическая отправка данных в Google Таблицу (через Apps Script)
+        // Автоматическая бесшумная отправка в Google Таблицу
         function syncStatsWithWebhook() {
             if (!AUTO_SYNC_WEBHOOK_URL) return;
             
@@ -621,20 +593,17 @@ ID Пациента: ${patientId}
             
             const dataToSend = JSON.stringify(payload);
 
-            // sendBeacon гарантирует доставку данных даже при мгновенном закрытии вкладки
             if (navigator.sendBeacon) {
                 navigator.sendBeacon(AUTO_SYNC_WEBHOOK_URL, dataToSend);
             } else {
-                // Резервный fetch с типом text/plain для обхода ограничений CORS в Google Apps Script
                 fetch(AUTO_SYNC_WEBHOOK_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain' },
                     body: dataToSend
-                }).catch(e => console.warn('Не удалось отправить статистику автоматически', e));
+                }).catch(e => console.warn('Сбой фоновой отправки данных', e));
             }
         }
 
-        // Сохранять прогресс прокрутки и отправлять вебхук при уходе со страницы
         window.onbeforeunload = function() {
             if (currentChapterId) {
                 localStorage.setItem(`scroll_pos_${currentChapterId}`, window.scrollY);
@@ -643,7 +612,6 @@ ID Пациента: ${patientId}
             syncStatsWithWebhook();
         };
 
-        // Запуск приложения
         window.onload = initApp;
     </script>
 </body>
