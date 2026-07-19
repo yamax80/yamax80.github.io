@@ -451,9 +451,13 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(rawHtml, 'text/html');
                 
+                // Очищаем контент от встроенных стилей
                 doc.querySelectorAll('style').forEach(s => s.remove());
-                const cleanContent = doc.querySelector('body').innerHTML;
+
+                // Удаляем технические блоки Google (футер и хедер)
+                doc.querySelectorAll('#footer, #header').forEach(el => el.remove());
                 
+                const cleanContent = doc.querySelector('body').innerHTML;
                 document.getElementById('chapter-content').innerHTML = cleanContent;
 
                 const savedScroll = localStorage.getItem(`scroll_pos_${currentChapterId}`);
