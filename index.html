@@ -24,17 +24,20 @@
         body.theme-sepia { background-color: #f4ecd8; color: #5b4636; }
         body.theme-dark  { background-color: #121212; color: #dddddd; }
 
+        /* Контейнер адаптирован под фиксированную панель */
         .container {
             max-width: 680px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 80px 20px 20px 20px;
             box-sizing: border-box;
         }
 
-        /* Навигационная панель управления */
+        /* Навигационная панель с поддержкой плавного скрытия */
         .top-bar {
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -43,6 +46,7 @@
             border-bottom: 1px solid rgba(128, 128, 128, 0.15);
             backdrop-filter: blur(8px);
             z-index: 1000;
+            transition: transform 0.3s ease; /* Плавное скрытие/появление */
         }
 
         .btn-group button {
@@ -66,17 +70,6 @@
         /* Оглавление */
         h1 { font-size: 26px; text-align: center; margin-top: 10px; }
         .subtitle { text-align: center; color: gray; margin-bottom: 30px; font-size: 16px;}
-
-        .patient-badge {
-            background-color: rgba(0, 128, 0, 0.1);
-            border: 1px solid rgba(0, 128, 0, 0.2);
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 25px;
-            font-size: 14px;
-            display: none; /* Скрыт по умолчанию, показывается только при наличии ID */
-        }
 
         .continue-reading-box {
             background-color: rgba(0, 102, 204, 0.1);
@@ -180,17 +173,17 @@
 <body class="theme-light">
 
     <!-- Верхняя панель управления настройками чтения -->
-    <div class="top-bar">
+    <div class="top-bar" id="navigation-top-bar">
         <div>
-            <!-- Кнопка перехода к списку доступна только на экране чтения -->
-            <button id="btn-to-index" class="btn-nav" style="display:none;" onclick="goHome()">🏠 Оглавление</button>
+            <!-- Кнопка перехода к списку (значок 🏠 для экономии места) -->
+            <button id="btn-to-index" class="btn-nav" style="display:none;" onclick="goHome()">🏠</button>
         </div>
         <div>
             <span class="btn-group">
                 <button onclick="changeFontSize(-1)">А-</button>
                 <button onclick="changeFontSize(1)">А+</button>
             </span>
-            <span class="btn-group" style="margin-left: 10px;">
+            <span class="btn-group" style="margin-left: 5px;">
                 <button onclick="setTheme('light')">День</button>
                 <button onclick="setTheme('sepia')">Сепия</button>
                 <button onclick="setTheme('dark')">Ночь</button>
@@ -205,10 +198,6 @@
             <h1>Терапия принятием и ответственностью</h1>
             <p class="subtitle">Практическое руководство по работе с тягой и зависимостями</p>
 
-            <div class="patient-badge" id="patient-badge">
-                Пациент: <strong id="patient-id-display">...</strong>
-            </div>
-
             <!-- Блок быстрого возврата к чтению -->
             <div class="continue-reading-box" id="continue-box">
                 Вы остановились на: <button class="btn-link" onclick="resumeReading()"><span id="continue-chapter-title">...</span></button>
@@ -216,7 +205,7 @@
 
             <!-- Список глав -->
             <ul class="chapter-list" id="chapters-ul">
-                <p style="text-align:center; padding: 20px; opacity:0.7;">Инициализация списка глав...</p>
+                <p style="text-align:center; padding: 20px; opacity:0.7;">Загрузка списка глав...</p>
             </ul>
         </div>
 
@@ -240,28 +229,15 @@
         const MASTER_DOC_URL = 'https://docs.google.com/document/d/e/2PACX-1vQR7Y7WnZQgXFXdO5D_NTDiwJCJV1G8IJ1VgynuEM55UrpBl33OyVO82roLIHxX9Pdvr_f9lXGCT-5b/pub';
         const AUTO_SYNC_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbxNUthMuBoOGOvVLqRODy58_9HCSm7XBdtRGfYi41sguxx_ZbGWb0w7i16MkEXt5AWN/exec'; 
 
-        // Исходная структура глав
-        const CHAPTERS_CONFIG = [
-            { id: 'chapter1',  num: 1,  title: 'Природа тяги и распространенные мифы о ней', url: '' },
-            { id: 'chapter2',  num: 2,  title: 'За и против: почему мы выбираем зависимость', url: '' },
-            { id: 'chapter3',  num: 3,  title: 'Роль ценностей в преодолении привычек',     url: '' },
-            { id: 'chapter4',  num: 4,  title: 'Почему жесткий контроль над тягой не работает', url: '' },
-            { id: 'chapter5',  num: 5,  title: 'Готовность принять и прожить тягу',         url: '' },
-            { id: 'chapter6',  num: 6,  title: 'Когнитивное разделение: шаг назад от мыслей', url: '' },
-            { id: 'chapter7',  num: 7,  title: 'Наблюдающее «Я»: вы больше своих историй',   url: '' },
-            { id: 'chapter8',  num: 8,  title: 'Осознанность и укрощение ума',              url: '' },
-            { id: 'chapter9',  num: 9,  title: 'Самосострадание против стыда и самокритики', url: '' },
-            { id: 'chapter10', num: 10, title: 'Наполнение жизни последовательными действиями', url: '' },
-            { id: 'chapter11', num: 11, title: 'Как справляться с промахами и рецидивами',   url: '' },
-            { id: 'chapter12', num: 12, title: 'Как выстроить надежную систему поддержки',   url: '' },
-            { id: 'chapter13', num: 13, title: 'Ваша новая история и долгосрочный успех',     url: '' }
-        ];
+        // Исходная структура глав (заполняется динамически)
+        let CHAPTERS_CONFIG = [];
 
         // Системные переменные
-        let patientId = null;
+        let patientId = 'Не указан';
         let currentChapterId = null;
         let isTabFocused = true;
         let globalReadingTimeInterval = null;
+        let lastScrollY = window.scrollY;
 
         let trackingStats = {
             totalActiveSeconds: 0,
@@ -278,16 +254,7 @@
                 localStorage.setItem('cravings_p_id', pCode);
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
-            patientId = localStorage.getItem('cravings_p_id');
-            
-            // Если код передан — показываем баннер, если нет — скрываем
-            if (patientId) {
-                document.getElementById('patient-badge').style.display = 'block';
-                document.getElementById('patient-id-display').innerText = patientId;
-            } else {
-                document.getElementById('patient-badge').style.display = 'none';
-                patientId = 'Не указан';
-            }
+            patientId = localStorage.getItem('cravings_p_id') || 'Не указан';
 
             // 2. Настройка темы и шрифта
             const savedTheme = localStorage.getItem('cravings_theme') || 'light';
@@ -303,6 +270,9 @@
             trackingStats.lastVisit = new Date().toLocaleDateString('ru-RU');
             saveStatsToStorage();
 
+            // Настройка анимации умного скрытия панели
+            initAutoHideNavbar();
+
             // 4. Динамическое скачивание адресов глав из мастер-документа
             await loadChapterUrlsFromMaster();
 
@@ -317,26 +287,54 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(rawHtml, 'text/html');
                 
-                const links = [];
+                const tempChapters = [];
+                const linksAlreadyAdded = new Set();
+                let chapterCounter = 1;
+                
                 doc.querySelectorAll('a').forEach(a => {
                     const href = a.getAttribute('href');
                     if (href) {
                         const clean = extractCleanUrl(href);
+                        // Загружаем только ссылки на опубликованные документы Google
                         if (clean.includes('/pub') && clean.includes('docs.google.com/document')) {
-                            if (!links.includes(clean)) {
-                                links.push(clean);
+                            if (!linksAlreadyAdded.has(clean)) {
+                                linksAlreadyAdded.add(clean);
+                                
+                                const titleText = a.textContent.trim();
+                                let title = titleText;
+                                let numStr = "";
+                                
+                                // Проверяем, начинается ли текст ссылки со слова "Глава" или "Введение"
+                                const matchChapter = titleText.match(/^Глава\s+(\d+)\.?\s*(.*)$/i);
+                                const matchIntro = titleText.match(/^Введение\s*[\.:,-]?\s*(.*)$/i);
+                                
+                                if (matchChapter) {
+                                    numStr = matchChapter[1];
+                                    title = matchChapter[2].trim();
+                                } else if (matchIntro) {
+                                    numStr = "В";
+                                    title = "Введение. " + matchIntro[1].trim();
+                                } else {
+                                    numStr = chapterCounter.toString();
+                                    title = titleText;
+                                }
+                                
+                                tempChapters.push({
+                                    id: `chapter_${chapterCounter}`,
+                                    num: numStr,
+                                    title: title,
+                                    url: clean
+                                });
+                                chapterCounter++;
                             }
                         }
                     }
                 });
 
-                // Назначаем найденные ссылки главам
-                for (let i = 0; i < CHAPTERS_CONFIG.length; i++) {
-                    if (links[i]) {
-                        CHAPTERS_CONFIG[i].url = links[i];
-                    } else {
-                        console.warn(`Ссылка для главы ${i + 1} не найдена в оглавлении.`);
-                    }
+                CHAPTERS_CONFIG = tempChapters;
+
+                if (CHAPTERS_CONFIG.length === 0) {
+                    throw new Error('В главном документе не обнаружено подходящих ссылок.');
                 }
 
                 // Рендерим оглавление
@@ -347,7 +345,7 @@
                 console.error('Ошибка импорта структуры оглавления', err);
                 document.getElementById('chapters-ul').innerHTML = `
                     <p style="color: red; text-align: center; padding: 20px; font-size:14px;">
-                        Ошибка при получении списка глав. Пожалуйста, проверьте подключение к сети и перезагрузите страницу.
+                        Ошибка при получении списка глав. Пожалуйста, убедитесь, что главный документ опубликован в вебе, и перезагрузите страницу.
                     </p>`;
             }
         }
@@ -409,9 +407,9 @@
             const lastChId = localStorage.getItem('cravings_last_ch_id');
             if (lastChId) {
                 const chapter = CHAPTERS_CONFIG.find(c => c.id === lastChId);
-                if (chapter && chapter.url) { // Открываем продолжение только если ссылка загружена
+                if (chapter && chapter.url) {
                     document.getElementById('continue-box').style.display = 'block';
-                    document.getElementById('continue-chapter-title').innerText = `Глава ${chapter.num}. ${chapter.title}`;
+                    document.getElementById('continue-chapter-title').innerText = `${chapter.title}`;
                 }
             } else {
                 document.getElementById('continue-box').style.display = 'none';
@@ -442,7 +440,7 @@
             const chapter = CHAPTERS_CONFIG[index];
             
             if (!chapter.url) {
-                document.getElementById('chapter-content').innerHTML = '<p style="text-align:center; padding: 40px 0; color: red;">Ошибка: ссылка для этой главы еще не загружена из оглавления. Попробуйте обновить страницу.</p>';
+                document.getElementById('chapter-content').innerHTML = '<p style="text-align:center; padding: 40px 0; color: red;">Ошибка: ссылка для этой главы еще не загружена. Попробуйте обновить страницу.</p>';
                 return;
             }
 
@@ -451,13 +449,20 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(rawHtml, 'text/html');
                 
-                // Очищаем контент от встроенных стилей
+                // Удаляем встроенные стили Google Docs
                 doc.querySelectorAll('style').forEach(s => s.remove());
 
-                // Удаляем технические блоки Google (футер и хедер)
-                doc.querySelectorAll('#footer, #header').forEach(el => el.remove());
+                // Пытаемся извлечь только полезный контент (без гугловских хедеров и футеров)
+                const contentsDiv = doc.querySelector('#contents');
+                let cleanContent = '';
+                if (contentsDiv) {
+                    cleanContent = contentsDiv.innerHTML;
+                } else {
+                    // Резервный вариант, если структура изменится
+                    doc.querySelectorAll('#footer, #header').forEach(el => el.remove());
+                    cleanContent = doc.querySelector('body').innerHTML;
+                }
                 
-                const cleanContent = doc.querySelector('body').innerHTML;
                 document.getElementById('chapter-content').innerHTML = cleanContent;
 
                 const savedScroll = localStorage.getItem(`scroll_pos_${currentChapterId}`);
@@ -538,6 +543,27 @@
             document.body.className = '';
             document.body.classList.add('theme-' + theme);
             localStorage.setItem('cravings_theme', theme);
+        }
+
+        // Анимация автоматического скрытия верхней панели
+        function initAutoHideNavbar() {
+            const topBar = document.getElementById('navigation-top-bar');
+            window.addEventListener('scroll', () => {
+                if (!topBar) return;
+                const currentScrollY = window.scrollY;
+                
+                if (currentScrollY < 50) {
+                    // В самом верху страницы — всегда показываем
+                    topBar.style.transform = 'translateY(0)';
+                } else if (currentScrollY > lastScrollY) {
+                    // Листаем вниз — скрываем панель
+                    topBar.style.transform = 'translateY(-100%)';
+                } else {
+                    // Листаем вверх — показываем панель
+                    topBar.style.transform = 'translateY(0)';
+                }
+                lastScrollY = currentScrollY;
+            });
         }
 
         // ================= СБОР АНАЛИТИКИ И СИНХРОНИЗАЦИЯ =================
