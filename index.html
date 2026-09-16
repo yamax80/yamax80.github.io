@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Перехват управления</title>
+    <title>Терапия принятия и ответственности (ACT)</title>
     <style>
         /* --- Стили интерфейса --- */
         :root {
@@ -195,8 +195,8 @@
 
         <!-- ================= ЭКРАН 1: ОГЛАВЛЕНИЕ ================= -->
         <div id="home-screen" class="screen active">
-            <h1>Перехват управления</h1>
-            <p class="subtitle">Пошаговый нейро-протокол работы с тягой: как переждать импульс и вернуть контроль над телом</p>
+            <h1>Терапия принятием и ответственностью</h1>
+            <p class="subtitle">Практическое руководство по работе с тягой и зависимостями</p>
 
             <!-- Блок быстрого возврата к чтению -->
             <div class="continue-reading-box" id="continue-box">
@@ -482,20 +482,42 @@
             }
         }
 
+        // Вспомогательный метод фетча запросов с тайм-аутом (6 секунд)
+        async function fetchWithTimeout(url, options = {}, timeout = 6000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            try {
+                const response = await fetch(url, { ...options, signal: controller.signal });
+                clearTimeout(id);
+                return response;
+            } catch (error) {
+                clearTimeout(id);
+                throw error;
+            }
+        }
+
+        // Обход CORS с авто-переключением и тайм-аутами
         async function fetchWithFallback(targetUrl) {
             const proxies = [
-                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+                `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+                `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`
             ];
             for (const proxy of proxies) {
                 try {
-                    const res = await fetch(proxy);
-                    if (res.ok) return await res.text();
+                    const res = await fetchWithTimeout(proxy);
+                    if (res.ok) {
+                        const text = await res.text();
+                        // Проверяем, что получен не пустой ответ
+                        if (text && text.trim().length > 100) {
+                            return text;
+                        }
+                    }
                 } catch (e) {
-                    console.warn('Сервер обхода CORS вернул ошибку, пробуем следующий...', e);
+                    console.warn(`Прокси не ответил или заблокирован: ${proxy}`, e.message);
                 }
             }
-            throw new Error('Все прокси-серверы недоступны.');
+            throw new Error('Все прокси-серверы вернули ошибку или недоступны.');
         }
 
         function goHome() {
@@ -539,13 +561,14 @@
             }
         }
 
+        // Установка цветовой схемы
         function setTheme(theme) {
             document.body.className = '';
             document.body.classList.add('theme-' + theme);
             localStorage.setItem('cravings_theme', theme);
         }
 
-        // Анимация автоматического скрытия верхней панели
+        // Анимация автоматического скрытия верхней панели при прокрутке вниз
         function initAutoHideNavbar() {
             const topBar = document.getElementById('navigation-top-bar');
             window.addEventListener('scroll', () => {
