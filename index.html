@@ -122,6 +122,23 @@
         .status-completed { color: #2ecc71; font-weight: bold; }
         .status-reading { color: #3498db; font-style: italic; }
 
+        /* Окно диагностического лога */
+        .diag-log {
+            font-family: monospace;
+            font-size: 11px;
+            background-color: rgba(128, 128, 128, 0.08);
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: left;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-top: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+            color: inherit;
+        }
+
         /* Экран чтения */
         .reader-nav {
             display: flex;
@@ -238,6 +255,9 @@
         let isTabFocused = true;
         let globalReadingTimeInterval = null;
         let lastScrollY = window.scrollY;
+        
+        // Массив для хранения диагностических сообщений
+        let diagnosticLogs = [];
 
         let trackingStats = {
             totalActiveSeconds: 0,
@@ -245,16 +265,28 @@
             chapters: {}
         };
 
+        // Запись в лог диагностики
+        function logDiag(message) {
+            const time = new Date().toLocaleTimeString('ru-RU');
+            const logEntry = `[${time}] ${message}`;
+            console.log(logEntry);
+            diagnosticLogs.push(logEntry);
+        }
+
         // Запуск приложения
         async function initApp() {
+            logDiag("Инициализация приложения...");
+            
             // 1. Определение ID Пациента
             const params = new URLSearchParams(window.location.search);
             const pCode = params.get('p') || params.get('id');
             if (pCode) {
                 localStorage.setItem('cravings_p_id', pCode);
                 window.history.replaceState({}, document.title, window.location.pathname);
+                logDiag(`Считан новый код пациента: ${pCode}`);
             }
             patientId = localStorage.getItem('cravings_p_id') || 'Не указан';
+            logDiag(`ID Пациента зафиксирован как: ${patientId}`);
 
             // 2. Настройка темы и шрифта
             const savedTheme = localStorage.getItem('cravings_theme') || 'light';
@@ -283,6 +315,7 @@
         // Автоматический парсинг главного документа
         async function loadChapterUrlsFromMaster() {
             try {
+                logDiag("Запуск автоматического парсинга оглавления...");
                 const rawHtml = await fetchWithFallback(MASTER_DOC_URL);
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(rawHtml, 'text/html');
@@ -332,8 +365,10 @@
                 });
 
                 CHAPTERS_CONFIG = tempChapters;
+                logDiag(`Парсинг успешно завершен. Обнаружено глав: ${CHAPTERS_CONFIG.length}`);
 
                 if (CHAPTERS_CONFIG.length === 0) {
+                    logDiag("Внимание: Парсинг вернул 0 ссылок. Возможно, структура оглавления изменилась.");
                     throw new Error('В главном документе не обнаружено подходящих ссылок.');
                 }
 
@@ -343,10 +378,30 @@
 
             } catch (err) {
                 console.error('Ошибка импорта структуры оглавления', err);
+                logDiag(`Критическая ошибка оглавления: ${err.message}`);
+                
                 document.getElementById('chapters-ul').innerHTML = `
-                    <p style="color: red; text-align: center; padding: 20px; font-size:14px;">
-                        Ошибка при получении списка глав. Пожалуйста, убедитесь, что главный документ опубликован в вебе, и перезагрузите страницу.
-                    </p>`;
+                    <div style="color: red; text-align: center; padding: 20px; font-size:14px; line-height: 1.5;">
+                        <p><strong>Ошибка при получении списка глав.</strong></p>
+                        <p style="font-size: 13px; color: inherit; opacity: 0.8; margin-bottom: 20px;">
+                            Убедитесь, что ваш главный Google Документ опубликован в вебе и содержит правильные ссылки на главы.
+                        </p>
+                        <button class="btn-nav" onclick="toggleDiagnostics()" style="font-size: 12px; padding: 6px 12px;">📊 Диагностика ошибки</button>
+                        <div id="diag-panel" style="display: none;" class="diag-log">
+${diagnosticLogs.join('\n')}
+                        </div>
+                        <p style="margin-top: 25px; font-size: 12px;">
+                            <a href="${MASTER_DOC_URL}" target="_blank" style="color: inherit; text-decoration: underline;">Открыть главный Google Документ напрямую ↗</a>
+                        </p>
+                    </div>`;
+            }
+        }
+
+        // Переключение видимости панели диагностики
+        function toggleDiagnostics() {
+            const panel = document.getElementById('diag-panel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
             }
         }
 
@@ -496,28 +551,46 @@
             }
         }
 
-        // Обход CORS с авто-переключением и тайм-аутами
+        // Обход CORS с авто-переключением, логированием и тайм-аутами
         async function fetchWithFallback(targetUrl) {
+            const cleanTarget = targetUrl.replace('https://docs.google.com/', '');
+            logDiag(`Запрос контента документа: .../${cleanTarget}`);
+            
             const proxies = [
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-                `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
-                `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`
+                { name: 'AllOrigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}` },
+                { name: 'ThingProxy', url: `https://thingproxy.freeboard.io/fetch/${targetUrl}` },
+                { name: 'CorsProxy.io', url: `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` }
             ];
+
+            const startTime = Date.now();
             for (const proxy of proxies) {
+                logDiag(`Пробуем через ${proxy.name}...`);
+                const proxyStartTime = Date.now();
                 try {
-                    const res = await fetchWithTimeout(proxy);
+                    const res = await fetchWithTimeout(proxy.url);
+                    const duration = Date.now() - proxyStartTime;
+                    logDiag(`Ответ от ${proxy.name}: статус ${res.status} (${res.statusText}) за ${duration}мс`);
+                    
                     if (res.ok) {
                         const text = await res.text();
-                        // Проверяем, что получен не пустой ответ
-                        if (text && text.trim().length > 100) {
+                        const len = text ? text.trim().length : 0;
+                        logDiag(`Получено символов от ${proxy.name}: ${len}`);
+                        
+                        if (len > 100) {
+                            logDiag(`Успешно загружено через ${proxy.name}. Общее время: ${Date.now() - startTime}мс`);
                             return text;
+                        } else {
+                            logDiag(`Предупреждение: слишком короткий ответ от ${proxy.name}`);
                         }
+                    } else {
+                        logDiag(`Сбой: ${proxy.name} вернул некорректный статус ${res.status}`);
                     }
                 } catch (e) {
-                    console.warn(`Прокси не ответил или заблокирован: ${proxy}`, e.message);
+                    const duration = Date.now() - proxyStartTime;
+                    logDiag(`Сбой при соединении через ${proxy.name} (${duration}мс): ${e.message}`);
                 }
             }
-            throw new Error('Все прокси-серверы вернули ошибку или недоступны.');
+            throw new Error('Ни один из бесплатных серверов обхода CORS не смог загрузить данные. Проверьте подключение к сети.');
         }
 
         function goHome() {
