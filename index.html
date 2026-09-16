@@ -537,7 +537,7 @@ ${diagnosticLogs.join('\n')}
             }
         }
 
-        // Вспомогательный метод фетча запросов с тайм-аутом (6 секунд)
+        // Вспомогательный метод фетча запросов с настраиваемым тайм-аутом
         async function fetchWithTimeout(url, options = {}, timeout = 6000) {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
@@ -551,23 +551,22 @@ ${diagnosticLogs.join('\n')}
             }
         }
 
-        // Обход CORS с авто-переключением, логированием и тайм-аутами
+        // Обход CORS с авто-переключением, логированием и гибкими тайм-аутами
         async function fetchWithFallback(targetUrl) {
             const cleanTarget = targetUrl.replace('https://docs.google.com/', '');
             logDiag(`Запрос контента документа: .../${cleanTarget}`);
             
             const proxies = [
-                { name: 'AllOrigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}` },
-                { name: 'ThingProxy', url: `https://thingproxy.freeboard.io/fetch/${targetUrl}` },
-                { name: 'CorsProxy.io', url: `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` }
+                { name: 'CORS.lol', url: `https://api.cors.lol/?url=${encodeURIComponent(targetUrl)}`, timeout: 8000 },
+                { name: 'AllOrigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, timeout: 15000 }
             ];
 
             const startTime = Date.now();
             for (const proxy of proxies) {
-                logDiag(`Пробуем через ${proxy.name}...`);
+                logDiag(`Пробуем через ${proxy.name} (тайм-аут ${proxy.timeout / 1000} сек)...`);
                 const proxyStartTime = Date.now();
                 try {
-                    const res = await fetchWithTimeout(proxy.url);
+                    const res = await fetchWithTimeout(proxy.url, {}, proxy.timeout);
                     const duration = Date.now() - proxyStartTime;
                     logDiag(`Ответ от ${proxy.name}: статус ${res.status} (${res.statusText}) за ${duration}мс`);
                     
@@ -580,7 +579,7 @@ ${diagnosticLogs.join('\n')}
                             logDiag(`Успешно загружено через ${proxy.name}. Общее время: ${Date.now() - startTime}мс`);
                             return text;
                         } else {
-                            logDiag(`Предупреждение: слишком короткий ответ от ${proxy.name}`);
+                            logDiag(`Предупреждение: слишком короткий ответ от ${proxy.name} (${len} симв.)`);
                         }
                     } else {
                         logDiag(`Сбой: ${proxy.name} вернул некорректный статус ${res.status}`);
@@ -590,7 +589,7 @@ ${diagnosticLogs.join('\n')}
                     logDiag(`Сбой при соединении через ${proxy.name} (${duration}мс): ${e.message}`);
                 }
             }
-            throw new Error('Ни один из бесплатных серверов обхода CORS не смог загрузить данные. Проверьте подключение к сети.');
+            throw new Error('Ни один из бесплатных серверов обхода CORS не смог загрузить данные.');
         }
 
         function goHome() {
