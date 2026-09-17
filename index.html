@@ -302,7 +302,7 @@
             trackingStats.lastVisit = new Date().toLocaleDateString('ru-RU');
             saveStatsToStorage();
 
-            // Настройка анимации умного скрытия панели
+            // Настройка панели
             initAutoHideNavbar();
 
             // 4. Динамическое скачивание адресов глав из мастер-документа
@@ -328,7 +328,6 @@
                     const href = a.getAttribute('href');
                     if (href) {
                         const clean = extractCleanUrl(href);
-                        // Загружаем только ссылки на опубликованные документы Google
                         if (clean.includes('/pub') && clean.includes('docs.google.com/document')) {
                             if (!linksAlreadyAdded.has(clean)) {
                                 linksAlreadyAdded.add(clean);
@@ -337,7 +336,6 @@
                                 let title = titleText;
                                 let numStr = "";
                                 
-                                // Проверяем, начинается ли текст ссылки со слова "Глава" или "Введение"
                                 const matchChapter = titleText.match(/^Глава\s+(\d+)\.?\s*(.*)$/i);
                                 const matchIntro = titleText.match(/^Введение\s*[\.:,-]?\s*(.*)$/i);
                                 
@@ -368,11 +366,10 @@
                 logDiag(`Парсинг успешно завершен. Обнаружено глав: ${CHAPTERS_CONFIG.length}`);
 
                 if (CHAPTERS_CONFIG.length === 0) {
-                    logDiag("Внимание: Парсинг вернул 0 ссылок. Возможно, структура оглавления изменилась.");
+                    logDiag("Внимание: Парсинг вернул 0 ссылок. Проверьте оглавление.");
                     throw new Error('В главном документе не обнаружено подходящих ссылок.');
                 }
 
-                // Рендерим оглавление
                 renderTableOfContents();
                 checkContinueReading();
 
@@ -397,7 +394,6 @@ ${diagnosticLogs.join('\n')}
             }
         }
 
-        // Переключение видимости панели диагностики
         function toggleDiagnostics() {
             const panel = document.getElementById('diag-panel');
             if (panel) {
@@ -405,7 +401,6 @@ ${diagnosticLogs.join('\n')}
             }
         }
 
-        // Очистка редирект-ссылок Google Docs
         function extractCleanUrl(url) {
             if (url.includes('google.com/url?q=')) {
                 const parts = url.split('google.com/url?q=');
@@ -417,7 +412,6 @@ ${diagnosticLogs.join('\n')}
             return url;
         }
 
-        // Отрендерить оглавление
         function renderTableOfContents() {
             const ul = document.getElementById('chapters-ul');
             ul.innerHTML = '';
@@ -457,7 +451,6 @@ ${diagnosticLogs.join('\n')}
             });
         }
 
-        // Проверить прерванное чтение
         function checkContinueReading() {
             const lastChId = localStorage.getItem('cravings_last_ch_id');
             if (lastChId) {
@@ -504,16 +497,13 @@ ${diagnosticLogs.join('\n')}
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(rawHtml, 'text/html');
                 
-                // Удаляем встроенные стили Google Docs
                 doc.querySelectorAll('style').forEach(s => s.remove());
 
-                // Пытаемся извлечь только полезный контент (без гугловских хедеров и футеров)
                 const contentsDiv = doc.querySelector('#contents');
                 let cleanContent = '';
                 if (contentsDiv) {
                     cleanContent = contentsDiv.innerHTML;
                 } else {
-                    // Резервный вариант, если структура изменится
                     doc.querySelectorAll('#footer, #header').forEach(el => el.remove());
                     cleanContent = doc.querySelector('body').innerHTML;
                 }
@@ -551,14 +541,16 @@ ${diagnosticLogs.join('\n')}
             }
         }
 
-        // Обход CORS с авто-переключением, логированием и гибкими тайм-аутами
+        // Обход CORS: собственный Google-прокси как приоритетный канал
         async function fetchWithFallback(targetUrl) {
             const cleanTarget = targetUrl.replace('https://docs.google.com/', '');
             logDiag(`Запрос контента документа: .../${cleanTarget}`);
             
             const proxies = [
-                { name: 'CORS.lol', url: `https://api.cors.lol/?url=${encodeURIComponent(targetUrl)}`, timeout: 8000 },
-                { name: 'AllOrigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, timeout: 15000 }
+                // Использование вашего скрипта Google как самого надежного приватного канала
+                { name: 'Приватный Google-Прокси', url: `${AUTO_SYNC_WEBHOOK_URL}?url=${encodeURIComponent(targetUrl)}`, timeout: 10000 },
+                // AllOrigins с увеличенным временем ожидания на случай пиковых нагрузок
+                { name: 'Резервный AllOrigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, timeout: 15000 }
             ];
 
             const startTime = Date.now();
@@ -589,7 +581,7 @@ ${diagnosticLogs.join('\n')}
                     logDiag(`Сбой при соединении через ${proxy.name} (${duration}мс): ${e.message}`);
                 }
             }
-            throw new Error('Ни один из бесплатных серверов обхода CORS не смог загрузить данные.');
+            throw new Error('Ни один из серверов не смог загрузить данные.');
         }
 
         function goHome() {
@@ -633,14 +625,12 @@ ${diagnosticLogs.join('\n')}
             }
         }
 
-        // Установка цветовой схемы
         function setTheme(theme) {
             document.body.className = '';
             document.body.classList.add('theme-' + theme);
             localStorage.setItem('cravings_theme', theme);
         }
 
-        // Анимация автоматического скрытия верхней панели при прокрутке вниз
         function initAutoHideNavbar() {
             const topBar = document.getElementById('navigation-top-bar');
             window.addEventListener('scroll', () => {
@@ -648,13 +638,10 @@ ${diagnosticLogs.join('\n')}
                 const currentScrollY = window.scrollY;
                 
                 if (currentScrollY < 50) {
-                    // В самом верху страницы — всегда показываем
                     topBar.style.transform = 'translateY(0)';
                 } else if (currentScrollY > lastScrollY) {
-                    // Листаем вниз — скрываем панель
                     topBar.style.transform = 'translateY(-100%)';
                 } else {
-                    // Листаем вверх — показываем панель
                     topBar.style.transform = 'translateY(0)';
                 }
                 lastScrollY = currentScrollY;
